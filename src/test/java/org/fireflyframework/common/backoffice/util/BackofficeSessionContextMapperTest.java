@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Firefly Software Solutions Inc
+ * Copyright 2024-2026 Firefly Software Solutions Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.firefly.common.backoffice.util;
+package org.fireflyframework.backoffice.util;
 
-import com.firefly.security.center.interfaces.dtos.SessionContextDTO;
+import org.fireflyframework.common.application.spi.SessionContext;
 import org.junit.jupiter.api.Test;
 
 import java.util.Set;
@@ -48,7 +48,7 @@ class BackofficeSessionContextMapperTest {
 
     @Test
     void shouldReturnFalseForNullRoleInRoleCheck() {
-        SessionContextDTO session = SessionContextDTO.builder().build();
+        SessionContext session = SessionContext.builder().build();
         assertFalse(BackofficeSessionContextMapper.hasBackofficeRole(session, null));
     }
 
@@ -59,13 +59,13 @@ class BackofficeSessionContextMapperTest {
 
     @Test
     void shouldReturnFalseForNullResourceInPermissionCheck() {
-        SessionContextDTO session = SessionContextDTO.builder().build();
+        SessionContext session = SessionContext.builder().build();
         assertFalse(BackofficeSessionContextMapper.hasBackofficePermission(session, null, "read"));
     }
 
     @Test
     void shouldReturnFalseForNullActionInPermissionCheck() {
-        SessionContextDTO session = SessionContextDTO.builder().build();
+        SessionContext session = SessionContext.builder().build();
         assertFalse(BackofficeSessionContextMapper.hasBackofficePermission(session, "customers", null));
     }
 
@@ -76,13 +76,13 @@ class BackofficeSessionContextMapperTest {
 
     @Test
     void shouldReturnFalseForNullRolesInAnyRoleCheck() {
-        SessionContextDTO session = SessionContextDTO.builder().build();
+        SessionContext session = SessionContext.builder().build();
         assertFalse(BackofficeSessionContextMapper.hasAnyBackofficeRole(session, (String[]) null));
     }
 
     @Test
     void shouldReturnFalseForEmptyRolesInAnyRoleCheck() {
-        SessionContextDTO session = SessionContextDTO.builder().build();
+        SessionContext session = SessionContext.builder().build();
         assertFalse(BackofficeSessionContextMapper.hasAnyBackofficeRole(session));
     }
 
@@ -93,13 +93,13 @@ class BackofficeSessionContextMapperTest {
 
     @Test
     void shouldReturnFalseForNullRolesInAllRolesCheck() {
-        SessionContextDTO session = SessionContextDTO.builder().build();
+        SessionContext session = SessionContext.builder().build();
         assertFalse(BackofficeSessionContextMapper.hasAllBackofficeRoles(session, (String[]) null));
     }
 
     @Test
     void shouldReturnFalseForEmptyRolesInAllRolesCheck() {
-        SessionContextDTO session = SessionContextDTO.builder().build();
+        SessionContext session = SessionContext.builder().build();
         assertFalse(BackofficeSessionContextMapper.hasAllBackofficeRoles(session));
     }
 
@@ -107,7 +107,7 @@ class BackofficeSessionContextMapperTest {
     void shouldCheckIsAdminCorrectly() {
         assertFalse(BackofficeSessionContextMapper.isAdmin(null));
         
-        SessionContextDTO session = SessionContextDTO.builder().build();
+        SessionContext session = SessionContext.builder().build();
         assertFalse(BackofficeSessionContextMapper.isAdmin(session));
     }
 
@@ -115,7 +115,7 @@ class BackofficeSessionContextMapperTest {
     void shouldCheckCanReadCustomersCorrectly() {
         assertFalse(BackofficeSessionContextMapper.canReadCustomers(null));
         
-        SessionContextDTO session = SessionContextDTO.builder().build();
+        SessionContext session = SessionContext.builder().build();
         assertFalse(BackofficeSessionContextMapper.canReadCustomers(session));
     }
 
@@ -123,13 +123,13 @@ class BackofficeSessionContextMapperTest {
     void shouldCheckCanWriteCustomersCorrectly() {
         assertFalse(BackofficeSessionContextMapper.canWriteCustomers(null));
         
-        SessionContextDTO session = SessionContextDTO.builder().build();
+        SessionContext session = SessionContext.builder().build();
         assertFalse(BackofficeSessionContextMapper.canWriteCustomers(session));
     }
 
     @Test
     void shouldExtractEmptyRolesForEmptySession() {
-        SessionContextDTO session = SessionContextDTO.builder().build();
+        SessionContext session = SessionContext.builder().build();
         
         Set<String> roles = BackofficeSessionContextMapper.extractBackofficeRoles(session);
         
@@ -139,7 +139,7 @@ class BackofficeSessionContextMapperTest {
 
     @Test
     void shouldExtractEmptyPermissionsForEmptySession() {
-        SessionContextDTO session = SessionContextDTO.builder().build();
+        SessionContext session = SessionContext.builder().build();
         
         Set<String> permissions = BackofficeSessionContextMapper.extractBackofficePermissions(session);
         

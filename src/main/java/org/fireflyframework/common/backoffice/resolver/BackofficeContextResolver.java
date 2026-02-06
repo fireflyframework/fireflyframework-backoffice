@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Firefly Software Solutions Inc
+ * Copyright 2024-2026 Firefly Software Solutions Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.firefly.common.backoffice.resolver;
+package org.fireflyframework.backoffice.resolver;
 
-import com.firefly.common.backoffice.context.BackofficeContext;
+import org.fireflyframework.backoffice.context.BackofficeContext;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 

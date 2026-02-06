@@ -1,6 +1,6 @@
 # Firefly Common Backoffice Library
 
-[![Maven Central](https://img.shields.io/maven-central/v/com.firefly/lib-common-backoffice.svg)](https://search.maven.org/artifact/com.firefly/lib-common-backoffice)
+[![Maven Central](https://img.shields.io/maven-central/v/org.fireflyframework/lib-common-backoffice.svg)](https://search.maven.org/artifact/org.fireflyframework/lib-common-backoffice)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 A Spring Boot library that extends the Firefly application layer architecture for internal backoffice and portal systems with **customer impersonation**, **audit logging**, and **enhanced security context management**.
@@ -58,7 +58,7 @@ The `lib-common-backoffice` library provides a secure and auditable way for back
 
 ```xml
 <dependency>
-    <groupId>com.firefly</groupId>
+    <groupId>org.fireflyframework</groupId>
     <artifactId>lib-common-backoffice</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 </dependency>
@@ -67,7 +67,7 @@ The `lib-common-backoffice` library provides a secure and auditable way for back
 ### Gradle
 
 ```gradle
-implementation 'com.firefly:lib-common-backoffice:1.0.0-SNAPSHOT'
+implementation 'org.fireflyframework:lib-common-backoffice:1.0.0-SNAPSHOT'
 ```
 
 ## Usage

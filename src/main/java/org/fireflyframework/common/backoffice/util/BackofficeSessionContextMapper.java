@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Firefly Software Solutions Inc
+ * Copyright 2024-2026 Firefly Software Solutions Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package com.firefly.common.backoffice.util;
+package org.fireflyframework.backoffice.util;
 
-import com.firefly.security.center.interfaces.dtos.SessionContextDTO;
+import org.fireflyframework.common.application.spi.SessionContext;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collections;
@@ -24,7 +24,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Utility class for mapping SessionContextDTO to backoffice roles and permissions.
+ * Utility class for mapping SessionContext to backoffice roles and permissions.
  * 
  * <p>This mapper extracts backoffice-specific roles and permissions from the session.
  * Unlike the standard SessionContextMapper which focuses on contract/product roles,
@@ -66,10 +66,10 @@ public final class BackofficeSessionContextMapper {
      * <p>Backoffice roles are typically stored at the party level (not contract-specific)
      * and represent the user's administrative privileges.</p>
      * 
-     * @param sessionContext The session context from FireflySessionManager
+     * @param sessionContext The session context from SessionManager
      * @return Set of backoffice role codes (e.g., "admin", "customer_support", "analyst")
      */
-    public static Set<String> extractBackofficeRoles(SessionContextDTO sessionContext) {
+    public static Set<String> extractBackofficeRoles(SessionContext sessionContext) {
         if (sessionContext == null) {
             log.debug("Session context is null, returning empty backoffice roles");
             return Collections.emptySet();
@@ -107,10 +107,10 @@ public final class BackofficeSessionContextMapper {
      * <p>Permissions are derived from backoffice roles and represent specific
      * actions the user can perform in the backoffice system.</p>
      * 
-     * @param sessionContext The session context from FireflySessionManager
+     * @param sessionContext The session context from SessionManager
      * @return Set of permission strings (e.g., "customers:read", "accounts:write")
      */
-    public static Set<String> extractBackofficePermissions(SessionContextDTO sessionContext) {
+    public static Set<String> extractBackofficePermissions(SessionContext sessionContext) {
         if (sessionContext == null) {
             log.debug("Session context is null, returning empty backoffice permissions");
             return Collections.emptySet();
@@ -149,11 +149,11 @@ public final class BackofficeSessionContextMapper {
     /**
      * Checks if the backoffice user has a specific role.
      * 
-     * @param sessionContext The session context from FireflySessionManager
+     * @param sessionContext The session context from SessionManager
      * @param role The role to check (e.g., "admin", "customer_support")
      * @return true if the user has the role, false otherwise
      */
-    public static boolean hasBackofficeRole(SessionContextDTO sessionContext, String role) {
+    public static boolean hasBackofficeRole(SessionContext sessionContext, String role) {
         if (sessionContext == null || role == null) {
             return false;
         }
@@ -168,12 +168,12 @@ public final class BackofficeSessionContextMapper {
     /**
      * Checks if the backoffice user has a specific permission.
      * 
-     * @param sessionContext The session context from FireflySessionManager
+     * @param sessionContext The session context from SessionManager
      * @param resource The resource type (e.g., "customers", "accounts")
      * @param action The action type (e.g., "read", "write", "delete")
      * @return true if the user has the permission, false otherwise
      */
-    public static boolean hasBackofficePermission(SessionContextDTO sessionContext, 
+    public static boolean hasBackofficePermission(SessionContext sessionContext, 
                                                   String resource, 
                                                   String action) {
         if (sessionContext == null || resource == null || action == null) {
@@ -191,11 +191,11 @@ public final class BackofficeSessionContextMapper {
     /**
      * Checks if the backoffice user has any of the specified roles.
      * 
-     * @param sessionContext The session context from FireflySessionManager
+     * @param sessionContext The session context from SessionManager
      * @param roles The roles to check
      * @return true if the user has any of the roles, false otherwise
      */
-    public static boolean hasAnyBackofficeRole(SessionContextDTO sessionContext, String... roles) {
+    public static boolean hasAnyBackofficeRole(SessionContext sessionContext, String... roles) {
         if (sessionContext == null || roles == null || roles.length == 0) {
             return false;
         }
@@ -215,11 +215,11 @@ public final class BackofficeSessionContextMapper {
     /**
      * Checks if the backoffice user has all of the specified roles.
      * 
-     * @param sessionContext The session context from FireflySessionManager
+     * @param sessionContext The session context from SessionManager
      * @param roles The roles to check
      * @return true if the user has all roles, false otherwise
      */
-    public static boolean hasAllBackofficeRoles(SessionContextDTO sessionContext, String... roles) {
+    public static boolean hasAllBackofficeRoles(SessionContext sessionContext, String... roles) {
         if (sessionContext == null || roles == null || roles.length == 0) {
             return false;
         }
@@ -240,30 +240,30 @@ public final class BackofficeSessionContextMapper {
      * Checks if the backoffice user is an administrator.
      * This is a convenience method that checks for the "admin" role.
      * 
-     * @param sessionContext The session context from FireflySessionManager
+     * @param sessionContext The session context from SessionManager
      * @return true if the user is an admin, false otherwise
      */
-    public static boolean isAdmin(SessionContextDTO sessionContext) {
+    public static boolean isAdmin(SessionContext sessionContext) {
         return hasBackofficeRole(sessionContext, "admin");
     }
     
     /**
      * Checks if the backoffice user has read access to customer data.
      * 
-     * @param sessionContext The session context from FireflySessionManager
+     * @param sessionContext The session context from SessionManager
      * @return true if the user can read customer data, false otherwise
      */
-    public static boolean canReadCustomers(SessionContextDTO sessionContext) {
+    public static boolean canReadCustomers(SessionContext sessionContext) {
         return hasBackofficePermission(sessionContext, "customers", "read");
     }
     
     /**
      * Checks if the backoffice user has write access to customer data.
      * 
-     * @param sessionContext The session context from FireflySessionManager
+     * @param sessionContext The session context from SessionManager
      * @return true if the user can write customer data, false otherwise
      */
-    public static boolean canWriteCustomers(SessionContextDTO sessionContext) {
+    public static boolean canWriteCustomers(SessionContext sessionContext) {
         return hasBackofficePermission(sessionContext, "customers", "write");
     }
 }

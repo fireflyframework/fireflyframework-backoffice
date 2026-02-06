@@ -5,17 +5,17 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>com.firefly</groupId>
-        <artifactId>lib-parent-pom</artifactId>
+        <groupId>org.fireflyframework</groupId>
+        <artifactId>fireflyframework-parent</artifactId>
         <version>1.0.0-SNAPSHOT</version>
         <relativePath/>
     </parent>
 
-    <artifactId>lib-common-backoffice</artifactId>
+    <artifactId>fireflyframework-backoffice</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>Firefly Common Backoffice Library</name>
+    <name>Firefly Framework - Common Backoffice Library</name>
     <description>A Spring Boot library that extends application layer architecture for internal backoffice and portal systems with customer impersonation, audit trail, and enhanced security context management.</description>
 
     <dependencies>
@@ -107,75 +107,49 @@
 
         <!-- Firefly Common Libraries -->
         <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>lib-common-core</artifactId>
+            <groupId>org.fireflyframework</groupId>
+            <artifactId>fireflyframework-core</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>lib-common-domain</artifactId>
+            <groupId>org.fireflyframework</groupId>
+            <artifactId>fireflyframework-domain</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>lib-common-data</artifactId>
+            <groupId>org.fireflyframework</groupId>
+            <artifactId>fireflyframework-data</artifactId>
             <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
 
-        <!-- Security Center Session Module -->
         <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>common-platform-security-center-session</artifactId>
+            <groupId>org.fireflyframework</groupId>
+            <artifactId>fireflyframework-client</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>lib-common-client</artifactId>
+            <groupId>org.fireflyframework</groupId>
+            <artifactId>fireflyframework-cache</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>lib-common-cache</artifactId>
+            <groupId>org.fireflyframework</groupId>
+            <artifactId>fireflyframework-cqrs</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>lib-common-cqrs</artifactId>
+            <groupId>org.fireflyframework</groupId>
+            <artifactId>fireflyframework-eda</artifactId>
             <version>${project.version}</version>
         </dependency>
 
-        <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>lib-common-eda</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <!-- Firefly Platform SDK Dependencies -->
-        <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>common-platform-customer-mgmt-sdk</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>common-platform-contract-mgmt-sdk</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.firefly</groupId>
-            <artifactId>common-platform-config-mgmt-sdk</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-
-        <!-- Resilience4j for resiliency patterns -->
+        <!-- Resilience4j
         <dependency>
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-spring-boot3</artifactId>

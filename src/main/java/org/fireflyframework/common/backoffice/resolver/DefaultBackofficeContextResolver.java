@@ -1,5 +1,5 @@
 /*
- * Copyright 2025 Firefly Software Solutions Inc
+ * Copyright 2024-2026 Firefly Software Solutions Inc
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-package com.firefly.common.backoffice.resolver;
+package org.fireflyframework.backoffice.resolver;
 
-import com.firefly.common.backoffice.context.BackofficeContext;
-import com.firefly.common.backoffice.util.BackofficeSessionContextMapper;
-import com.firefly.security.center.session.FireflySessionManager;
+import org.fireflyframework.backoffice.context.BackofficeContext;
+import org.fireflyframework.backoffice.util.BackofficeSessionContextMapper;
+import org.fireflyframework.common.application.spi.SessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -116,7 +116,7 @@ import java.util.UUID;
 public class DefaultBackofficeContextResolver extends AbstractBackofficeContextResolver {
     
     @Autowired(required = false)
-    private final FireflySessionManager sessionManager;
+    private final SessionManager sessionManager;
     
     // TODO: Inject platform SDK clients when available
     // private final ConfigManagementClient configMgmtClient;  // For tenant resolution
@@ -199,14 +199,14 @@ public class DefaultBackofficeContextResolver extends AbstractBackofficeContextR
     protected Mono<Set<String>> resolveBackofficeRoles(BackofficeContext context, ServerWebExchange exchange) {
         log.debug("Resolving backoffice roles for user: {}", context.getBackofficeUserId());
         
-        // Check if FireflySessionManager is available
+        // Check if SessionManager is available
         if (sessionManager == null) {
-            log.warn("FireflySessionManager not available - returning empty backoffice roles. " +
+            log.warn("SessionManager not available - returning empty backoffice roles. " +
                     "Ensure common-platform-security-center is deployed and accessible.");
             return Mono.just(Set.of());
         }
         
-        // Use FireflySessionManager to get backoffice user's session
+        // Use SessionManager to get backoffice user's session
         return sessionManager.createOrGetSession(exchange)
             .map(session -> {
                 // Extract backoffice roles using BackofficeSessionContextMapper
@@ -216,7 +216,7 @@ public class DefaultBackofficeContextResolver extends AbstractBackofficeContextR
                         roles.size(), context.getBackofficeUserId(), roles);
                 return roles;
             })
-            .doOnError(error -> log.error("Failed to resolve backoffice roles from FireflySessionManager: {}", 
+            .doOnError(error -> log.error("Failed to resolve backoffice roles from SessionManager: {}", 
                     error.getMessage(), error))
             .onErrorReturn(Set.of()); // Graceful degradation on error
     }
@@ -225,14 +225,14 @@ public class DefaultBackofficeContextResolver extends AbstractBackofficeContextR
     protected Mono<Set<String>> resolveBackofficePermissions(BackofficeContext context, ServerWebExchange exchange) {
         log.debug("Resolving backoffice permissions for user: {}", context.getBackofficeUserId());
         
-        // Check if FireflySessionManager is available
+        // Check if SessionManager is available
         if (sessionManager == null) {
-            log.warn("FireflySessionManager not available - returning empty backoffice permissions. " +
+            log.warn("SessionManager not available - returning empty backoffice permissions. " +
                     "Ensure common-platform-security-center is deployed and accessible.");
             return Mono.just(Set.of());
         }
         
-        // Use FireflySessionManager to get backoffice user's session
+        // Use SessionManager to get backoffice user's session
         return sessionManager.createOrGetSession(exchange)
             .map(session -> {
                 // Extract backoffice permissions using BackofficeSessionContextMapper
@@ -242,7 +242,7 @@ public class DefaultBackofficeContextResolver extends AbstractBackofficeContextR
                         permissions.size(), context.getBackofficeUserId(), permissions);
                 return permissions;
             })
-            .doOnError(error -> log.error("Failed to resolve backoffice permissions from FireflySessionManager: {}", 
+            .doOnError(error -> log.error("Failed to resolve backoffice permissions from SessionManager: {}", 
                     error.getMessage(), error))
             .onErrorReturn(Set.of()); // Graceful degradation on error
     }
@@ -252,9 +252,9 @@ public class DefaultBackofficeContextResolver extends AbstractBackofficeContextR
         log.debug("Resolving impersonated party roles for party: {} in contract: {}, product: {}", 
                 context.getImpersonatedPartyId(), context.getContractId(), context.getProductId());
         
-        // Check if FireflySessionManager is available
+        // Check if SessionManager is available
         if (sessionManager == null) {
-            log.warn("FireflySessionManager not available - returning empty impersonated party roles. " +
+            log.warn("SessionManager not available - returning empty impersonated party roles. " +
                     "Ensure common-platform-security-center is deployed and accessible.");
             return Mono.just(Set.of());
         }
@@ -318,9 +318,9 @@ public class DefaultBackofficeContextResolver extends AbstractBackofficeContextR
         log.debug("Resolving impersonated party permissions for party: {} in contract: {}, product: {}", 
                 context.getImpersonatedPartyId(), context.getContractId(), context.getProductId());
         
-        // Check if FireflySessionManager is available
+        // Check if SessionManager is available
         if (sessionManager == null) {
-            log.warn("FireflySessionManager not available - returning empty impersonated party permissions. " +
+            log.warn("SessionManager not available - returning empty impersonated party permissions. " +
                     "Ensure common-platform-security-center is deployed and accessible.");
             return Mono.just(Set.of());
         }
