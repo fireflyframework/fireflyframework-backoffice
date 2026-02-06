@@ -18,6 +18,7 @@ package org.fireflyframework.backoffice.resolver;
 
 import org.fireflyframework.backoffice.context.BackofficeContext;
 import org.fireflyframework.backoffice.util.BackofficeSessionContextMapper;
+import org.fireflyframework.common.application.spi.SessionContext;
 import org.fireflyframework.common.application.spi.SessionManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -116,7 +117,7 @@ import java.util.UUID;
 public class DefaultBackofficeContextResolver extends AbstractBackofficeContextResolver {
     
     @Autowired(required = false)
-    private final SessionManager sessionManager;
+    private final SessionManager<SessionContext> sessionManager;
     
     // TODO: Inject platform SDK clients when available
     // private final ConfigManagementClient configMgmtClient;  // For tenant resolution

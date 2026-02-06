@@ -149,6 +149,12 @@
             <version>${project.version}</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.fireflyframework</groupId>
+            <artifactId>fireflyframework-application</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Resilience4j
         <dependency>
             <groupId>io.github.resilience4j</groupId>
@@ -158,6 +164,7 @@
             <groupId>io.github.resilience4j</groupId>
             <artifactId>resilience4j-reactor</artifactId>
         </dependency>
+        -->
 
         <!-- Testing -->
         <dependency>
