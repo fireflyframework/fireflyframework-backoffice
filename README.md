@@ -1,4 +1,6 @@
 # Firefly Common Backoffice Library
+    
+[![CI](https://github.com/fireflyframework/fireflyframework-backoffice/actions/workflows/ci.yml/badge.svg)](https://github.com/fireflyframework/fireflyframework-backoffice/actions/workflows/ci.yml)
 
 [![Maven Central](https://img.shields.io/maven-central/v/org.fireflyframework/lib-common-backoffice.svg)](https://search.maven.org/artifact/org.fireflyframework/lib-common-backoffice)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
