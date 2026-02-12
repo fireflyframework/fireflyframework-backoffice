@@ -52,7 +52,7 @@ This library is designed for internal-facing microservices that require administ
 <dependency>
     <groupId>org.fireflyframework</groupId>
     <artifactId>fireflyframework-backoffice</artifactId>
-    <version>26.02.02</version>
+    <version>26.02.03</version>
 </dependency>
 ```
 
