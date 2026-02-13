@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package org.fireflyframework.backoffice.resolver;
+package org.fireflyframework.common.backoffice.resolver;
 
-import org.fireflyframework.backoffice.context.BackofficeContext;
+import org.fireflyframework.common.backoffice.context.BackofficeContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;

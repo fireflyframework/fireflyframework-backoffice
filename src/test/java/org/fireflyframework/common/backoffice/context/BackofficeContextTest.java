@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.fireflyframework.backoffice.context;
+package org.fireflyframework.common.backoffice.context;
 
 import org.junit.jupiter.api.Test;
 

@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
-package org.fireflyframework.backoffice.resolver;
+package org.fireflyframework.common.backoffice.resolver;
 
-import org.fireflyframework.backoffice.context.BackofficeContext;
-import org.fireflyframework.backoffice.util.BackofficeSessionContextMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.fireflyframework.common.backoffice.context.BackofficeContext;
+import org.fireflyframework.common.backoffice.util.BackofficeSessionContextMapper;
 import org.fireflyframework.common.application.spi.SessionContext;
 import org.fireflyframework.common.application.spi.SessionManager;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.util.Base64;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -199,53 +206,61 @@ public class DefaultBackofficeContextResolver extends AbstractBackofficeContextR
     @Override
     protected Mono<Set<String>> resolveBackofficeRoles(BackofficeContext context, ServerWebExchange exchange) {
         log.debug("Resolving backoffice roles for user: {}", context.getBackofficeUserId());
-        
-        // Check if SessionManager is available
-        if (sessionManager == null) {
-            log.warn("SessionManager not available - returning empty backoffice roles. " +
-                    "Ensure common-platform-security-center is deployed and accessible.");
-            return Mono.just(Set.of());
+
+        // Strategy 1: Use SessionManager if available
+        if (sessionManager != null) {
+            return sessionManager.createOrGetSession(exchange)
+                .map(session -> {
+                    Set<String> roles = BackofficeSessionContextMapper.extractBackofficeRoles(session);
+                    log.debug("Resolved {} backoffice roles from SessionManager for user {}: {}",
+                            roles.size(), context.getBackofficeUserId(), roles);
+                    return roles;
+                })
+                .doOnError(error -> log.error("Failed to resolve backoffice roles from SessionManager: {}",
+                        error.getMessage(), error))
+                .onErrorReturn(Set.of());
         }
-        
-        // Use SessionManager to get backoffice user's session
-        return sessionManager.createOrGetSession(exchange)
-            .map(session -> {
-                // Extract backoffice roles using BackofficeSessionContextMapper
-                Set<String> roles = BackofficeSessionContextMapper.extractBackofficeRoles(session);
-                
-                log.debug("Resolved {} backoffice roles for user {}: {}", 
-                        roles.size(), context.getBackofficeUserId(), roles);
-                return roles;
-            })
-            .doOnError(error -> log.error("Failed to resolve backoffice roles from SessionManager: {}", 
-                    error.getMessage(), error))
-            .onErrorReturn(Set.of()); // Graceful degradation on error
+
+        // Strategy 2: Extract roles from JWT Authorization header (fallback)
+        Set<String> jwtRoles = extractRolesFromJwt(exchange);
+        if (!jwtRoles.isEmpty()) {
+            log.debug("Resolved {} backoffice roles from JWT for user {}: {}",
+                    jwtRoles.size(), context.getBackofficeUserId(), jwtRoles);
+            return Mono.just(jwtRoles);
+        }
+
+        log.warn("No SessionManager or JWT available - returning empty backoffice roles");
+        return Mono.just(Set.of());
     }
     
     @Override
     protected Mono<Set<String>> resolveBackofficePermissions(BackofficeContext context, ServerWebExchange exchange) {
         log.debug("Resolving backoffice permissions for user: {}", context.getBackofficeUserId());
-        
-        // Check if SessionManager is available
-        if (sessionManager == null) {
-            log.warn("SessionManager not available - returning empty backoffice permissions. " +
-                    "Ensure common-platform-security-center is deployed and accessible.");
-            return Mono.just(Set.of());
+
+        // Strategy 1: Use SessionManager if available
+        if (sessionManager != null) {
+            return sessionManager.createOrGetSession(exchange)
+                .map(session -> {
+                    Set<String> permissions = BackofficeSessionContextMapper.extractBackofficePermissions(session);
+                    log.debug("Resolved {} backoffice permissions from SessionManager for user {}: {}",
+                            permissions.size(), context.getBackofficeUserId(), permissions);
+                    return permissions;
+                })
+                .doOnError(error -> log.error("Failed to resolve backoffice permissions from SessionManager: {}",
+                        error.getMessage(), error))
+                .onErrorReturn(Set.of());
         }
-        
-        // Use SessionManager to get backoffice user's session
-        return sessionManager.createOrGetSession(exchange)
-            .map(session -> {
-                // Extract backoffice permissions using BackofficeSessionContextMapper
-                Set<String> permissions = BackofficeSessionContextMapper.extractBackofficePermissions(session);
-                
-                log.debug("Resolved {} backoffice permissions for user {}: {}", 
-                        permissions.size(), context.getBackofficeUserId(), permissions);
-                return permissions;
-            })
-            .doOnError(error -> log.error("Failed to resolve backoffice permissions from SessionManager: {}", 
-                    error.getMessage(), error))
-            .onErrorReturn(Set.of()); // Graceful degradation on error
+
+        // Strategy 2: Extract scopes/permissions from JWT Authorization header (fallback)
+        Set<String> jwtPermissions = extractPermissionsFromJwt(exchange);
+        if (!jwtPermissions.isEmpty()) {
+            log.debug("Resolved {} backoffice permissions from JWT for user {}: {}",
+                    jwtPermissions.size(), context.getBackofficeUserId(), jwtPermissions);
+            return Mono.just(jwtPermissions);
+        }
+
+        log.warn("No SessionManager or JWT available - returning empty backoffice permissions");
+        return Mono.just(Set.of());
     }
     
     @Override
@@ -362,5 +377,89 @@ public class DefaultBackofficeContextResolver extends AbstractBackofficeContextR
     public int getPriority() {
         // Default priority
         return 0;
+    }
+
+    /**
+     * Extract roles from JWT Authorization header.
+     * Supports standard "roles" claim, Keycloak "realm_access.roles", and Cognito "cognito:groups".
+     */
+    private Set<String> extractRolesFromJwt(ServerWebExchange exchange) {
+        Map<String, Object> claims = parseJwtClaims(exchange);
+        if (claims == null) {
+            return Collections.emptySet();
+        }
+
+        Set<String> roles = new HashSet<>();
+
+        // Standard "roles" claim
+        addStringList(roles, claims.get("roles"));
+
+        // Keycloak: realm_access.roles
+        if (claims.get("realm_access") instanceof Map<?, ?> realmAccess) {
+            addStringList(roles, realmAccess.get("roles"));
+        }
+
+        // Cognito: cognito:groups
+        addStringList(roles, claims.get("cognito:groups"));
+
+        return roles;
+    }
+
+    /**
+     * Extract permissions/scopes from JWT Authorization header.
+     */
+    private Set<String> extractPermissionsFromJwt(ServerWebExchange exchange) {
+        Map<String, Object> claims = parseJwtClaims(exchange);
+        if (claims == null) {
+            return Collections.emptySet();
+        }
+
+        Set<String> permissions = new HashSet<>();
+
+        // Standard "scope" claim (space-separated)
+        if (claims.get("scope") instanceof String scopeStr) {
+            for (String s : scopeStr.split("\\s+")) {
+                if (!s.isBlank()) {
+                    permissions.add(s);
+                }
+            }
+        }
+
+        // "permissions" claim (array)
+        addStringList(permissions, claims.get("permissions"));
+
+        return permissions;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseJwtClaims(ServerWebExchange exchange) {
+        String authHeader = exchange.getRequest().getHeaders().getFirst("Authorization");
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            return null;
+        }
+
+        try {
+            String token = authHeader.substring(7);
+            String[] parts = token.split("\\.");
+            if (parts.length < 2) {
+                return null;
+            }
+            String payload = new String(Base64.getUrlDecoder().decode(parts[1]));
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.readValue(payload, new TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            log.debug("Failed to parse JWT claims: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private void addStringList(Set<String> target, Object value) {
+        if (value instanceof List<?> list) {
+            for (Object item : list) {
+                if (item instanceof String s && !s.isBlank()) {
+                    target.add(s);
+                }
+            }
+        }
     }
 }
