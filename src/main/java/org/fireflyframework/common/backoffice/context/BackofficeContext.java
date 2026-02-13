@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.fireflyframework.backoffice.context;
+package org.fireflyframework.common.backoffice.context;
 
 import lombok.Builder;
 import lombok.Value;

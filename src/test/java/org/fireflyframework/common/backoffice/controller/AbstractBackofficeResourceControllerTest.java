@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package org.fireflyframework.backoffice.controller;
+package org.fireflyframework.common.backoffice.controller;
 
-import org.fireflyframework.backoffice.context.BackofficeContext;
-import org.fireflyframework.backoffice.resolver.BackofficeContextResolver;
+import org.fireflyframework.common.backoffice.context.BackofficeContext;
+import org.fireflyframework.common.backoffice.resolver.BackofficeContextResolver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;

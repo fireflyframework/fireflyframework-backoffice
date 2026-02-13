@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.fireflyframework.backoffice.util;
+package org.fireflyframework.common.backoffice.util;
 
 import org.fireflyframework.common.application.spi.SessionContext;
 import lombok.extern.slf4j.Slf4j;
@@ -76,27 +76,31 @@ public final class BackofficeSessionContextMapper {
         }
         
         Set<String> roles = new HashSet<>();
-        
-        // TODO: Implement extraction of backoffice roles from session
-        // Backoffice roles should be stored differently from contract roles
-        // They might be in a separate field like sessionContext.getBackofficeRoles()
-        // or sessionContext.getAdministrativeRoles()
-        
-        /*
-        // Example implementation when SDK supports backoffice roles:
-        if (sessionContext.getBackofficeRoles() != null) {
-            for (BackofficeRoleDTO role : sessionContext.getBackofficeRoles()) {
-                if (Boolean.TRUE.equals(role.getIsActive())) {
-                    String roleCode = role.getRoleCode();
-                    if (roleCode != null && !roleCode.isBlank()) {
-                        roles.add(roleCode);
-                        log.debug("Extracted backoffice role: {}", roleCode);
+
+        // Extract roles from the session's roles list.
+        // Backoffice sessions populate SessionContext.roles with the user's administrative roles.
+        if (sessionContext.getRoles() != null) {
+            for (String role : sessionContext.getRoles()) {
+                if (role != null && !role.isBlank()) {
+                    roles.add(role);
+                    log.debug("Extracted backoffice role: {}", role);
+                }
+            }
+        }
+
+        // Also check attributes for backoffice-specific roles (if session enrichment provides them separately)
+        if (sessionContext.getAttributes() != null) {
+            Object boRoles = sessionContext.getAttributes().get("backofficeRoles");
+            if (boRoles instanceof Iterable<?> iterable) {
+                for (Object r : iterable) {
+                    if (r instanceof String roleStr && !roleStr.isBlank()) {
+                        roles.add(roleStr);
+                        log.debug("Extracted backoffice role from attributes: {}", roleStr);
                     }
                 }
             }
         }
-        */
-        
+
         log.debug("Extracted {} backoffice roles: {}", roles.size(), roles);
         return roles;
     }
@@ -117,31 +121,31 @@ public final class BackofficeSessionContextMapper {
         }
         
         Set<String> permissions = new HashSet<>();
-        
-        // TODO: Implement extraction of backoffice permissions from session
-        // Permissions should be derived from backoffice roles
-        
-        /*
-        // Example implementation when SDK supports backoffice permissions:
-        if (sessionContext.getBackofficeRoles() != null) {
-            for (BackofficeRoleDTO role : sessionContext.getBackofficeRoles()) {
-                if (Boolean.TRUE.equals(role.getIsActive()) && role.getPermissions() != null) {
-                    for (PermissionDTO permission : role.getPermissions()) {
-                        if (Boolean.TRUE.equals(permission.getIsActive())) {
-                            // Format: {resource}:{action}
-                            String permissionStr = String.format("%s:%s", 
-                                    permission.getResourceType(), 
-                                    permission.getActionType());
-                            
-                            permissions.add(permissionStr);
-                            log.debug("Extracted backoffice permission: {}", permissionStr);
-                        }
+
+        // Extract permissions from the session's scopes list.
+        // Backoffice sessions populate SessionContext.scopes with fine-grained permissions (resource:action).
+        if (sessionContext.getScopes() != null) {
+            for (String scope : sessionContext.getScopes()) {
+                if (scope != null && !scope.isBlank()) {
+                    permissions.add(scope);
+                    log.debug("Extracted backoffice permission from scope: {}", scope);
+                }
+            }
+        }
+
+        // Also check attributes for backoffice-specific permissions
+        if (sessionContext.getAttributes() != null) {
+            Object boPermissions = sessionContext.getAttributes().get("backofficePermissions");
+            if (boPermissions instanceof Iterable<?> iterable) {
+                for (Object p : iterable) {
+                    if (p instanceof String permStr && !permStr.isBlank()) {
+                        permissions.add(permStr);
+                        log.debug("Extracted backoffice permission from attributes: {}", permStr);
                     }
                 }
             }
         }
-        */
-        
+
         log.debug("Extracted {} backoffice permissions: {}", permissions.size(), permissions);
         return permissions;
     }
