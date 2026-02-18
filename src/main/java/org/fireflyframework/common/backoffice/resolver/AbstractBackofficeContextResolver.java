@@ -55,8 +55,8 @@ public abstract class AbstractBackofficeContextResolver implements BackofficeCon
                 resolveBackofficeUserId(exchange),
                 resolveImpersonatedPartyId(exchange),
                 resolveTenantId(exchange),
-                resolveContractId(exchange).defaultIfEmpty(UUID.randomUUID()), // placeholder UUID if empty
-                resolveProductId(exchange).defaultIfEmpty(UUID.randomUUID())  // placeholder UUID if empty
+                resolveContractId(exchange).defaultIfEmpty(new UUID(0, 0)), // sentinel value — use overload with explicit IDs
+                resolveProductId(exchange).defaultIfEmpty(new UUID(0, 0))  // sentinel value — use overload with explicit IDs
         )
         .flatMap(tuple -> {
             UUID backofficeUserId = tuple.getT1();

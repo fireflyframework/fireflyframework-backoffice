@@ -7,12 +7,12 @@
     <parent>
         <groupId>org.fireflyframework</groupId>
         <artifactId>fireflyframework-parent</artifactId>
-        <version>26.02.04</version>
+        <version>26.02.05</version>
         <relativePath/>
     </parent>
 
     <artifactId>fireflyframework-backoffice</artifactId>
-    <version>26.02.04</version>
+    <version>26.02.05</version>
     <packaging>jar</packaging>
 
     <name>Firefly Framework - Common Backoffice Library</name>
@@ -89,19 +89,19 @@
         <!-- Firefly Common Libraries -->
         <dependency>
             <groupId>org.fireflyframework</groupId>
-            <artifactId>fireflyframework-core</artifactId>
+            <artifactId>fireflyframework-starter-core</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.fireflyframework</groupId>
-            <artifactId>fireflyframework-domain</artifactId>
+            <artifactId>fireflyframework-starter-domain</artifactId>
             <version>${project.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.fireflyframework</groupId>
-            <artifactId>fireflyframework-data</artifactId>
+            <artifactId>fireflyframework-starter-data</artifactId>
             <version>${project.version}</version>
             <optional>true</optional>
         </dependency>
@@ -132,7 +132,7 @@
 
         <dependency>
             <groupId>org.fireflyframework</groupId>
-            <artifactId>fireflyframework-application</artifactId>
+            <artifactId>fireflyframework-starter-application</artifactId>
             <version>${project.version}</version>
         </dependency>
 
