@@ -23,140 +23,88 @@ import reactor.core.publisher.Mono;
 import java.util.UUID;
 
 /**
- * Interface for resolving backoffice context with customer impersonation from incoming requests.
- * Implementations are responsible for extracting and enriching context information including:
+ * Interface for resolving the {@link BackofficeContext} from incoming requests.
+ *
+ * <p>Implementations extract and enrich product-agnostic context information from the validated
+ * security principal (via the {@code fireflyframework-security} platform):</p>
  * <ul>
- *   <li>backofficeUserId - The actual backoffice/admin user making the request</li>
- *   <li>impersonatedPartyId - The customer (party) being accessed/impersonated</li>
- *   <li>contractId, productId - Business context identifiers</li>
- *   <li>roles and permissions - For both backoffice user and impersonated party</li>
+ *   <li><strong>backofficeUserId</strong> - the authenticated backoffice operator (from the principal subject)</li>
+ *   <li><strong>backofficeRoles / backofficePermissions</strong> - from the principal's authorities/scopes</li>
+ *   <li><strong>tenantId</strong> - from the principal's tenant identifier (when a UUID)</li>
+ *   <li><strong>impersonatedSubject</strong> - optional generic subject from the {@code X-Impersonate-Subject} header</li>
  * </ul>
- * 
- * <p>This is the main entry point for backoffice context resolution with impersonation support.</p>
- * 
- * <h2>Expected Headers (Injected by Istio for Backoffice Routes)</h2>
- * <ul>
- *   <li><code>X-User-Id</code> - Backoffice user UUID (required) - Authenticated backoffice user</li>
- *   <li><code>X-Impersonate-Party-Id</code> - Customer party UUID (required) - Customer being accessed</li>
- *   <li><code>X-Tenant-Id</code> - Tenant UUID (optional) - Can be resolved from party</li>
- *   <li><code>X-Impersonation-Reason</code> - Reason for impersonation (optional, for audit)</li>
- * </ul>
- * 
+ *
+ * <p>This is the main entry point for backoffice context resolution. It carries no product domain
+ * (no party, contract, or product) and no Security Center / SessionManager dependency.</p>
+ *
  * @author Firefly Development Team
  * @since 1.0.0
  */
 public interface BackofficeContextResolver {
-    
+
     /**
      * Resolves the complete backoffice context from the request.
-     * This method extracts all IDs automatically (backoffice user, impersonated party, tenant, contract, product).
-     * 
+     *
      * @param exchange the server web exchange
      * @return Mono of resolved BackofficeContext
      */
     Mono<BackofficeContext> resolveContext(ServerWebExchange exchange);
-    
+
     /**
-     * Resolves the backoffice context with explicit contractId and productId.
-     * This is the method controllers should use to pass IDs extracted from {@code @PathVariable}.
-     * 
-     * <p>Backoffice user and impersonated party IDs are extracted from Istio headers 
-     * (X-User-Id, X-Impersonate-Party-Id), but contract and product IDs are provided 
-     * explicitly by the controller.</p>
-     * 
+     * Resolves the backoffice operator ID from the request.
+     *
+     * <p>The operator identity is derived from the validated security principal's subject. When the
+     * subject is a UUID it is returned; otherwise the result is empty and the raw subject should be
+     * retained as the {@code "backofficeUserSubject"} attribute on the context.</p>
+     *
      * @param exchange the server web exchange
-     * @param contractId the contract ID from {@code @PathVariable} (nullable)
-     * @param productId the product ID from {@code @PathVariable} (nullable)
-     * @return Mono of resolved BackofficeContext
-     */
-    Mono<BackofficeContext> resolveContext(ServerWebExchange exchange, UUID contractId, UUID productId);
-    
-    /**
-     * Resolves the backoffice user ID from the request.
-     * This should extract the authenticated backoffice/admin user identifier.
-     * 
-     * <p>Expected header: X-User-Id (injected by Istio for backoffice routes)</p>
-     * 
-     * @param exchange the server web exchange
-     * @return Mono of backoffice user UUID
+     * @return Mono of backoffice operator UUID (may be empty)
      */
     Mono<UUID> resolveBackofficeUserId(ServerWebExchange exchange);
-    
+
     /**
-     * Resolves the impersonated party ID from the request.
-     * This is the customer (party) whose data is being accessed or modified.
-     * 
-     * <p>Expected header: X-Impersonate-Party-Id (required for backoffice operations on customer data)</p>
-     * 
+     * Resolves the generic impersonated subject from the request (optional).
+     *
+     * <p>Read from the {@code X-Impersonate-Subject} header when present; empty otherwise.</p>
+     *
      * @param exchange the server web exchange
-     * @return Mono of impersonated party UUID
+     * @return Mono of the impersonated subject (may be empty)
      */
-    Mono<UUID> resolveImpersonatedPartyId(ServerWebExchange exchange);
-    
-    /**
-     * Resolves the contract ID from the request.
-     * This may come from path parameters, query parameters, or headers.
-     * 
-     * @param exchange the server web exchange
-     * @return Mono of contract UUID (may be empty)
-     */
-    Mono<UUID> resolveContractId(ServerWebExchange exchange);
-    
-    /**
-     * Resolves the product ID from the request.
-     * This may come from path parameters, query parameters, or headers.
-     * 
-     * @param exchange the server web exchange
-     * @return Mono of product UUID (may be empty)
-     */
-    Mono<UUID> resolveProductId(ServerWebExchange exchange);
-    
+    Mono<String> resolveImpersonatedSubject(ServerWebExchange exchange);
+
     /**
      * Resolves the tenant ID from the request.
-     * This typically comes from the impersonated party's tenant association.
-     * 
+     *
+     * <p>Typically derived from the validated security principal's tenant identifier.</p>
+     *
      * @param exchange the server web exchange
-     * @return Mono of tenant UUID
+     * @return Mono of tenant UUID (may be empty)
      */
     Mono<UUID> resolveTenantId(ServerWebExchange exchange);
-    
+
     /**
      * Resolves the impersonation reason from the request (for audit trail).
-     * This may come from headers or request attributes.
-     * 
+     *
      * @param exchange the server web exchange
      * @return Mono of impersonation reason (may be empty)
      */
     Mono<String> resolveImpersonationReason(ServerWebExchange exchange);
-    
-    /**
-     * Validates that the backoffice user has permission to impersonate the given party.
-     * This should check with the Security Center or permission service.
-     * 
-     * @param backofficeUserId the backoffice user requesting impersonation
-     * @param impersonatedPartyId the party being impersonated
-     * @param exchange the server web exchange
-     * @return Mono of boolean indicating if impersonation is authorized
-     */
-    Mono<Boolean> validateImpersonationPermission(UUID backofficeUserId, 
-                                                   UUID impersonatedPartyId, 
-                                                   ServerWebExchange exchange);
-    
+
     /**
      * Checks if this resolver supports the given request.
      * Allows for multiple resolver implementations with different strategies.
-     * 
+     *
      * @param exchange the server web exchange
      * @return true if this resolver can handle the request
      */
     default boolean supports(ServerWebExchange exchange) {
         return true;
     }
-    
+
     /**
      * Priority of this resolver (higher values take precedence).
      * Used when multiple resolvers support the same request.
-     * 
+     *
      * @return priority value
      */
     default int getPriority() {

@@ -21,301 +21,192 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
 /**
- * Abstract base implementation of BackofficeContextResolver.
- * Provides common functionality and template methods for backoffice context resolution with impersonation.
- * 
- * <p>Subclasses should implement the abstract methods to provide specific
- * resolution strategies for their use case.</p>
- * 
- * <p>This class handles:</p>
- * <ul>
- *   <li>Extraction of backoffice user ID from X-User-Id header</li>
- *   <li>Extraction of impersonated party ID from X-Impersonate-Party-Id header</li>
- *   <li>Validation of impersonation permissions</li>
- *   <li>Enrichment with roles and permissions for both users</li>
- *   <li>Audit trail creation</li>
- * </ul>
- * 
+ * Abstract base implementation of {@link BackofficeContextResolver}.
+ *
+ * <p>Provides the assembly template for a product-agnostic {@link BackofficeContext}: the backoffice
+ * operator identity, roles and permissions default from the validated security principal (resolved by
+ * subclasses), an optional generic impersonated subject is read from the request, and the tenant is
+ * derived from the principal.</p>
+ *
+ * <p>Subclasses implement the principal-backed resolution methods. This base wires them together,
+ * captures the operator IP for audit, and exposes enrichment hooks for impersonated-subject
+ * roles/permissions (informational only).</p>
+ *
  * @author Firefly Development Team
  * @since 1.0.0
  */
 @Slf4j
 public abstract class AbstractBackofficeContextResolver implements BackofficeContextResolver {
-    
+
     @Override
     public Mono<BackofficeContext> resolveContext(ServerWebExchange exchange) {
-        log.debug("Resolving backoffice context for request (deprecated - use version with explicit IDs)");
-        
+        log.debug("Resolving backoffice context from validated security principal");
+
         return Mono.zip(
-                resolveBackofficeUserId(exchange),
-                resolveImpersonatedPartyId(exchange),
-                resolveTenantId(exchange),
-                resolveContractId(exchange).defaultIfEmpty(new UUID(0, 0)), // sentinel value — use overload with explicit IDs
-                resolveProductId(exchange).defaultIfEmpty(new UUID(0, 0))  // sentinel value — use overload with explicit IDs
-        )
-        .flatMap(tuple -> {
-            UUID backofficeUserId = tuple.getT1();
-            UUID impersonatedPartyId = tuple.getT2();
-            UUID tenantId = tuple.getT3();
-            UUID contractId = tuple.getT4();
-            UUID productId = tuple.getT5();
-            
-            // Validate impersonation permission
-            return validateImpersonationPermission(backofficeUserId, impersonatedPartyId, exchange)
-                .flatMap(isAuthorized -> {
-                    if (!isAuthorized) {
-                        return Mono.error(new SecurityException(
-                            String.format("Backoffice user %s is not authorized to impersonate party %s", 
-                                backofficeUserId, impersonatedPartyId)));
-                    }
-                    
-                    return enrichContext(
-                            BackofficeContext.builder()
-                                    .backofficeUserId(backofficeUserId)
-                                    .impersonatedPartyId(impersonatedPartyId)
-                                    .tenantId(tenantId)
-                                    .contractId(contractId)
-                                    .productId(productId)
-                                    .impersonationStartedAt(Instant.now())
-                                    .build(),
-                            exchange
-                    );
-                });
-        })
-        .doOnSuccess(context -> log.debug("Successfully resolved backoffice context: backoffice user={}, impersonated party={}", 
-                context.getBackofficeUserId(), context.getImpersonatedPartyId()))
-        .doOnError(error -> log.error("Failed to resolve backoffice context", error));
+                        resolveBackofficeUserId(exchange).map(UUID::toString).defaultIfEmpty(""),
+                        resolveImpersonatedSubject(exchange).defaultIfEmpty(""),
+                        resolveTenantId(exchange).map(UUID::toString).defaultIfEmpty(""),
+                        resolveImpersonationReason(exchange).defaultIfEmpty("")
+                )
+                .flatMap(tuple -> {
+                    String backofficeUserIdRaw = tuple.getT1();
+                    String impersonatedSubjectRaw = tuple.getT2();
+                    String tenantIdRaw = tuple.getT3();
+                    String impersonationReasonRaw = tuple.getT4();
+
+                    UUID backofficeUserId = backofficeUserIdRaw.isEmpty() ? null : UUID.fromString(backofficeUserIdRaw);
+                    String impersonatedSubject = impersonatedSubjectRaw.isEmpty() ? null : impersonatedSubjectRaw;
+                    UUID tenantId = tenantIdRaw.isEmpty() ? null : UUID.fromString(tenantIdRaw);
+                    String impersonationReason = impersonationReasonRaw.isEmpty() ? null : impersonationReasonRaw;
+
+                    BackofficeContext basicContext = BackofficeContext.builder()
+                            .backofficeUserId(backofficeUserId)
+                            .impersonatedSubject(impersonatedSubject)
+                            .tenantId(tenantId)
+                            .impersonationReason(impersonationReason)
+                            .backofficeUserIpAddress(extractIpAddress(exchange))
+                            .build();
+
+                    return enrichContext(basicContext, exchange);
+                })
+                .doOnSuccess(context -> log.debug(
+                        "Resolved backoffice context: operator={}, impersonatedSubject={}, tenant={}",
+                        context.getBackofficeUserId(), context.getImpersonatedSubject(), context.getTenantId()))
+                .doOnError(error -> log.error("Failed to resolve backoffice context", error));
     }
-    
-    @Override
-    public Mono<BackofficeContext> resolveContext(ServerWebExchange exchange, UUID contractId, UUID productId) {
-        log.debug("Resolving backoffice context with explicit contract: {} and product: {}", contractId, productId);
-        
-        return Mono.zip(
-                resolveBackofficeUserId(exchange),
-                resolveImpersonatedPartyId(exchange),
-                resolveTenantId(exchange),
-                resolveImpersonationReason(exchange).defaultIfEmpty("Not specified")
-        )
-        .flatMap(tuple -> {
-            UUID backofficeUserId = tuple.getT1();
-            UUID impersonatedPartyId = tuple.getT2();
-            UUID tenantId = tuple.getT3();
-            String impersonationReason = tuple.getT4();
-            
-            // Validate impersonation permission
-            return validateImpersonationPermission(backofficeUserId, impersonatedPartyId, exchange)
-                .flatMap(isAuthorized -> {
-                    if (!isAuthorized) {
-                        return Mono.error(new SecurityException(
-                            String.format("Backoffice user %s is not authorized to impersonate party %s", 
-                                backofficeUserId, impersonatedPartyId)));
-                    }
-                    
-                    // Extract IP address for audit
-                    String ipAddress = extractIpAddress(exchange);
-                    
-                    return enrichContext(
-                            BackofficeContext.builder()
-                                    .backofficeUserId(backofficeUserId)
-                                    .impersonatedPartyId(impersonatedPartyId)
-                                    .tenantId(tenantId)
-                                    .contractId(contractId)  // Explicit from controller
-                                    .productId(productId)     // Explicit from controller
-                                    .impersonationStartedAt(Instant.now())
-                                    .impersonationReason(impersonationReason)
-                                    .backofficeUserIpAddress(ipAddress)
-                                    .build(),
-                            exchange
-                    );
-                });
-        })
-        .doOnSuccess(context -> log.debug("Successfully resolved backoffice context: backoffice user={}, impersonated party={}, contract={}, product={}", 
-                context.getBackofficeUserId(), context.getImpersonatedPartyId(), 
-                context.getContractId(), context.getProductId()))
-        .doOnError(error -> log.error("Failed to resolve backoffice context", error));
-    }
-    
+
     /**
-     * Enriches the basic context with roles, permissions, and additional data.
-     * This method should fetch data from platform services for both the backoffice user and impersonated party.
-     * 
-     * @param basicContext the basic context with IDs
-     * @param exchange the server web exchange
+     * Enriches the basic context with backoffice roles/permissions (from the principal) and the
+     * impersonated subject's informational roles/permissions.
+     *
+     * @param basicContext the basic context with identities resolved
+     * @param exchange     the server web exchange
      * @return Mono of enriched BackofficeContext
      */
-    protected Mono<BackofficeContext> enrichContext(BackofficeContext basicContext, 
+    protected Mono<BackofficeContext> enrichContext(BackofficeContext basicContext,
                                                     ServerWebExchange exchange) {
         return Mono.zip(
-                resolveBackofficeRoles(basicContext, exchange),
-                resolveBackofficePermissions(basicContext, exchange),
-                resolveImpersonatedPartyRoles(basicContext, exchange),
-                resolveImpersonatedPartyPermissions(basicContext, exchange)
-        )
-        .map(tuple -> basicContext.toBuilder()
-                .backofficeRoles(tuple.getT1())
-                .backofficePermissions(tuple.getT2())
-                .impersonatedPartyRoles(tuple.getT3())
-                .impersonatedPartyPermissions(tuple.getT4())
-                .build())
-        .defaultIfEmpty(basicContext);
+                        resolveBackofficeRoles(basicContext, exchange),
+                        resolveBackofficePermissions(basicContext, exchange),
+                        resolveImpersonatedSubjectRoles(basicContext, exchange),
+                        resolveImpersonatedSubjectPermissions(basicContext, exchange)
+                )
+                .map(tuple -> basicContext.toBuilder()
+                        .backofficeRoles(tuple.getT1())
+                        .backofficePermissions(tuple.getT2())
+                        .impersonatedSubjectRoles(tuple.getT3())
+                        .impersonatedSubjectPermissions(tuple.getT4())
+                        .build())
+                .defaultIfEmpty(basicContext);
     }
-    
+
     /**
-     * Resolves roles for the backoffice user.
-     * These are backoffice-specific roles like "admin", "support", "analyst", etc.
-     * 
-     * @param context the backoffice context
+     * Resolves roles for the backoffice operator. Defaults to the principal's authorities in the
+     * concrete resolver; the base returns an empty set.
+     *
+     * @param context  the backoffice context
      * @param exchange the server web exchange
      * @return Mono of role set
      */
     protected Mono<Set<String>> resolveBackofficeRoles(BackofficeContext context, ServerWebExchange exchange) {
-        log.debug("Resolving backoffice roles for user: {}", context.getBackofficeUserId());
+        log.debug("Resolving backoffice roles for operator: {}", context.getBackofficeUserId());
         return Mono.just(Set.of());
     }
-    
+
     /**
-     * Resolves permissions for the backoffice user.
-     * These are derived from backoffice roles.
-     * 
-     * @param context the backoffice context
+     * Resolves permissions for the backoffice operator. Defaults to the principal's scopes in the
+     * concrete resolver; the base returns an empty set.
+     *
+     * @param context  the backoffice context
      * @param exchange the server web exchange
      * @return Mono of permission set
      */
     protected Mono<Set<String>> resolveBackofficePermissions(BackofficeContext context, ServerWebExchange exchange) {
-        log.debug("Resolving backoffice permissions for user: {}", context.getBackofficeUserId());
+        log.debug("Resolving backoffice permissions for operator: {}", context.getBackofficeUserId());
         return Mono.just(Set.of());
     }
-    
+
     /**
-     * Resolves roles for the impersonated party in the context of the contract/product.
-     * These are informational - the backoffice user's permissions take precedence.
-     * 
-     * @param context the backoffice context
+     * Resolves informational roles for the impersonated subject (if any).
+     *
+     * @param context  the backoffice context
      * @param exchange the server web exchange
      * @return Mono of role set
      */
-    protected Mono<Set<String>> resolveImpersonatedPartyRoles(BackofficeContext context, ServerWebExchange exchange) {
-        log.debug("Resolving impersonated party roles for party: {} in contract: {}", 
-                context.getImpersonatedPartyId(), context.getContractId());
+    protected Mono<Set<String>> resolveImpersonatedSubjectRoles(BackofficeContext context, ServerWebExchange exchange) {
+        log.debug("Resolving impersonated subject roles for: {}", context.getImpersonatedSubject());
         return Mono.just(Set.of());
     }
-    
+
     /**
-     * Resolves permissions for the impersonated party in the context of the contract/product.
-     * These are informational - the backoffice user's permissions take precedence.
-     * 
-     * @param context the backoffice context
+     * Resolves informational permissions for the impersonated subject (if any).
+     *
+     * @param context  the backoffice context
      * @param exchange the server web exchange
      * @return Mono of permission set
      */
-    protected Mono<Set<String>> resolveImpersonatedPartyPermissions(BackofficeContext context, ServerWebExchange exchange) {
-        log.debug("Resolving impersonated party permissions for party: {} in contract: {}, product: {}", 
-                context.getImpersonatedPartyId(), context.getContractId(), context.getProductId());
+    protected Mono<Set<String>> resolveImpersonatedSubjectPermissions(BackofficeContext context, ServerWebExchange exchange) {
+        log.debug("Resolving impersonated subject permissions for: {}", context.getImpersonatedSubject());
         return Mono.just(Set.of());
     }
-    
+
     /**
-     * Extracts UUID from request attribute or header.
-     * 
-     * @param exchange the server web exchange
+     * Extracts a string value from a request attribute or header.
+     *
+     * @param exchange      the server web exchange
      * @param attributeName the attribute name
-     * @param headerName the header name
-     * @return Mono of UUID
-     */
-    protected Mono<UUID> extractUUID(ServerWebExchange exchange, String attributeName, String headerName) {
-        // Try to get from attribute first
-        UUID fromAttribute = exchange.getAttribute(attributeName);
-        if (fromAttribute != null) {
-            return Mono.just(fromAttribute);
-        }
-        
-        // Try to get from header
-        String headerValue = exchange.getRequest().getHeaders().getFirst(headerName);
-        if (headerValue != null && !headerValue.isEmpty()) {
-            try {
-                return Mono.just(UUID.fromString(headerValue));
-            } catch (IllegalArgumentException e) {
-                log.warn("Invalid UUID format in header {}: {}", headerName, headerValue);
-            }
-        }
-        
-        return Mono.empty();
-    }
-    
-    /**
-     * Extracts string value from request attribute or header.
-     * 
-     * @param exchange the server web exchange
-     * @param attributeName the attribute name
-     * @param headerName the header name
-     * @return Mono of String
+     * @param headerName    the header name
+     * @return Mono of String (may be empty)
      */
     protected Mono<String> extractString(ServerWebExchange exchange, String attributeName, String headerName) {
-        // Try to get from attribute first
         String fromAttribute = exchange.getAttribute(attributeName);
         if (fromAttribute != null && !fromAttribute.isEmpty()) {
             return Mono.just(fromAttribute);
         }
-        
-        // Try to get from header
+
         String headerValue = exchange.getRequest().getHeaders().getFirst(headerName);
         if (headerValue != null && !headerValue.isEmpty()) {
             return Mono.just(headerValue);
         }
-        
+
         return Mono.empty();
     }
-    
+
     /**
-     * Extracts IP address from the request.
-     * 
+     * Extracts the IP address of the backoffice operator from the request.
+     *
      * @param exchange the server web exchange
      * @return IP address or "unknown"
      */
     protected String extractIpAddress(ServerWebExchange exchange) {
-        // Try X-Forwarded-For first (for proxied requests)
         String xForwardedFor = exchange.getRequest().getHeaders().getFirst("X-Forwarded-For");
         if (xForwardedFor != null && !xForwardedFor.isEmpty()) {
-            // Take the first IP in the chain
             return xForwardedFor.split(",")[0].trim();
         }
-        
-        // Try X-Real-IP
+
         String xRealIp = exchange.getRequest().getHeaders().getFirst("X-Real-IP");
         if (xRealIp != null && !xRealIp.isEmpty()) {
             return xRealIp;
         }
-        
-        // Fall back to remote address
-        if (exchange.getRequest().getRemoteAddress() != null) {
+
+        if (exchange.getRequest().getRemoteAddress() != null
+                && exchange.getRequest().getRemoteAddress().getAddress() != null) {
             return exchange.getRequest().getRemoteAddress().getAddress().getHostAddress();
         }
-        
+
         return "unknown";
     }
-    
+
     @Override
-    public Mono<UUID> resolveContractId(ServerWebExchange exchange) {
-        // Contract ID is not extracted here - it must be passed explicitly by controllers
-        // Controllers extract contractId from @PathVariable and pass it to services
-        log.debug("Contract ID resolution delegated to controller layer");
-        return Mono.empty();
+    public Mono<String> resolveImpersonatedSubject(ServerWebExchange exchange) {
+        log.debug("Resolving impersonated subject from X-Impersonate-Subject header");
+        return extractString(exchange, "impersonatedSubject", "X-Impersonate-Subject");
     }
-    
-    @Override
-    public Mono<UUID> resolveProductId(ServerWebExchange exchange) {
-        // Product ID is not extracted here - it must be passed explicitly by controllers
-        // Controllers extract productId from @PathVariable and pass it to services
-        log.debug("Product ID resolution delegated to controller layer");
-        return Mono.empty();
-    }
-    
+
     @Override
     public Mono<String> resolveImpersonationReason(ServerWebExchange exchange) {
         log.debug("Resolving impersonation reason from request");
